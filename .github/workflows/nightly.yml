@@ -8,8 +8,12 @@ on:
 jobs:
   nightly-build-and-test:
     runs-on: ubuntu-latest
+
     
     steps:
+    - name: Checkout Infra Repo
+      uses: actions/checkout@v4
+      
     - name: Checkout Source Repo
       uses: actions/checkout@v4
       with:
@@ -47,7 +51,7 @@ jobs:
         mkdir -p database
 
         # Bake values into user-data script
-        cat user-data.sh | \
+        cat scripts/user-data.sh | \
           sed "s|\${DOCKER_COMPOSE}|${DOCKER_COMPOSE_CONTENT}|g" | \
           sed "s|\${SQL_INIT}|${SQL_INIT_CONTENT}|g" | \
           sed "s|\${ECR_REGISTRY}|${{ steps.login-ecr.outputs.registry }}|g" | \
