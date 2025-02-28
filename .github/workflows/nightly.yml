@@ -64,6 +64,7 @@ jobs:
           --instance-type t2.micro \
           --user-data file://userdata-final.sh \
           --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=temp-smoke-test}]' \
+          --query 'Instances[0].InstanceId' \
           --output text)
         
         echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
