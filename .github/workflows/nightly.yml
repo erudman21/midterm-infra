@@ -27,13 +27,24 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
+    - name: Build and push images to ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        cd frontend
+        docker build -t $ECR_REGISTRY/midterm/frontend:latest $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
+        docker push $ECR_REGISTRY/midterm/frontend:latest
+        docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
+        
+        cd ../backend
+        docker build -t $ECR_REGISTRY/midterm/backend:latest $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
+        docker push $ECR_REGISTRY/midterm/backend:latest
+        docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
+
     - name: Create temp EC2
       run: true
     
     - name: Run smoke tests
-      run: true
-    
-    - name: Build and push Docker images
       run: true
     
     - name: Deploy to QA
