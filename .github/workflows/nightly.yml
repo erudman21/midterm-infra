@@ -32,12 +32,12 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         cd frontend
-        docker build -t $ECR_REGISTRY/midterm/frontend:latest $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
+        docker build -t $ECR_REGISTRY/midterm/frontend:latest -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/frontend:latest
         docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
         
         cd ../backend
-        docker build -t $ECR_REGISTRY/midterm/backend:latest $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
+        docker build -t $ECR_REGISTRY/midterm/backend:latest -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/backend:latest
         docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
 
