@@ -61,10 +61,10 @@ jobs:
 
         # Bake values into user-data script
         cat infra/scripts/user-data.sh | \
-          sed "s|\${DOCKER_COMPOSE}|${DOCKER_COMPOSE_CONTENT}|g" | \
-          sed "s|\${SQL_INIT}|${SQL_INIT_CONTENT}|g" | \
-          sed "s|\${ECR_REGISTRY}|${{ steps.login-ecr.outputs.registry }}|g" | \
-          sed "s|\${IMAGE_TAG}|${{ github.sha }}|g" > userdata-final.sh
+          sed "s#\${DOCKER_COMPOSE}#${DOCKER_COMPOSE_CONTENT}#g" | \
+          sed "s#\${SQL_INIT}#${SQL_INIT_CONTENT}#g" | \
+          sed "s#\${ECR_REGISTRY}#${{ steps.login-ecr.outputs.registry }}#g" | \
+          sed "s#\${IMAGE_TAG}#${{ github.sha }}#g" > userdata-final.sh
 
     - name: Launch temp EC2 instance for testing
       id: launch-ec2
@@ -98,7 +98,9 @@ jobs:
       id: run-smoke-tests
       env:
         EC2_IP: ${{ steps.launch-ec2.outputs.public_ip }}
-      run: infra/scripts/smoke_test.sh
+      run: |
+        chmod +x infra/scripts/smoke_test.sh
+        ./infra/scripts/smoke_test.sh
 
     - name: Tag successful images as latest
       if: ${{ success() && steps.run-smoke-tests.outcome == 'success' }}
