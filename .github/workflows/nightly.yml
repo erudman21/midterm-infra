@@ -27,25 +27,59 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and push images to ECR
+    - name: Build and push initial images to ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         cd frontend
-        docker build -t $ECR_REGISTRY/midterm/frontend:latest -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
-        docker push $ECR_REGISTRY/midterm/frontend:latest
+        docker build -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
         
         cd ../backend
-        docker build -t $ECR_REGISTRY/midterm/backend:latest -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
-        docker push $ECR_REGISTRY/midterm/backend:latest
+        docker build -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
 
-    - name: Create temp EC2
-      run: true
-    
-    - name: Run smoke tests
-      run: true
+    - name: Prepare user data script
+      run: |
+        DOCKER_COMPOSE_CONTENT=$(cat docker-compose-with-images.yml)
+        SQL_INIT_CONTENT=$(cat database/init.sql)
+      
+        mkdir -p database
+
+        # Bake values into user-data script
+        cat user-data.sh | \
+          sed "s|\${DOCKER_COMPOSE}|${DOCKER_COMPOSE_CONTENT}|g" | \
+          sed "s|\${SQL_INIT}|${SQL_INIT_CONTENT}|g" | \
+          sed "s|\${ECR_REGISTRY}|${{ steps.login-ecr.outputs.registry }}|g" | \
+          sed "s|\${IMAGE_TAG}|${{ github.sha }}|g" > userdata-final.sh
+        
+        chmod +x userdata-final.sh
+
+    - name: Launch temp EC2 instance for testing
+      id: launch-ec2
+      run: |
+        # Launch EC2 instance
+        INSTANCE_ID=$(aws ec2 run-instances \
+          --image-id ami-05b10e08d247fb927 \
+          --instance-type t2.micro \
+          --user-data file://userdata-final.sh \
+          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=temp-smoke-test}]' \
+          --output text)
+        
+        echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+        
+        # Wait for instance to be running
+        aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+        
+        # Add time for the user data script to finish
+        sleep 180
+
+    - name: Terminate temp EC2 instance
+      if: always()
+      env:
+        INSTANCE_ID: ${{ steps.launch-ec2.outputs.instance_id }}
+      run: |
+        aws ec2 terminate-instances --instance-ids $INSTANCE_ID
     
     - name: Deploy to QA
       run: true
