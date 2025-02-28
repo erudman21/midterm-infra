@@ -71,9 +71,44 @@ jobs:
         
         # Wait for instance to be running
         aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+
+        # Get public IP address for smoke tests
+        PUBLIC_IP=$(aws ec2 describe-instances \
+          --instance-ids $INSTANCE_ID \
+          --query 'Reservations[0].Instances[0].PublicIpAddress' \
+          --output text)
+        
+        echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
         
         # Add time for the user data script to finish
         sleep 180
+
+    - name: Run smoke tests
+      id: run-smoke-tests
+      env:
+        EC2_IP: ${{ steps.launch-ec2.outputs.public_ip }}
+      run: scripts/smoke_test.sh
+
+    - name: Tag successful images as latest
+      if: ${{ success() && steps.run-smoke-tests.outcome == 'success' }}
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        # Frontend image
+        MANIFEST=$(aws ecr batch-get-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }} --query 'images[].imageManifest' --output text)
+        aws ecr put-image --repository-name midterm/frontend --image-tag latest --image-manifest "$MANIFEST"
+        
+        # Backend image
+        MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }} --query 'images[].imageManifest' --output text)
+        aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
+
+    - name: Delete image from ECR when tests fail
+      if: ${{ failure() && steps.run-smoke-tests.outcome == 'failure' }}
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }}
+        aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }}
 
     - name: Terminate temp EC2 instance
       if: always()
