@@ -5,6 +5,10 @@ sudo yum update -y
 sudo yum install -y docker aws-cli
 systemctl start docker
 
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.33.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
 # Create working directory
 mkdir -p /app
 cd /app

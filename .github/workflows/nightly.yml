@@ -114,13 +114,13 @@ jobs:
         MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }} --query 'images[].imageManifest' --output text)
         aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
 
-    - name: Delete image from ECR when tests fail
-      if: ${{ failure() && steps.run-smoke-tests.outcome == 'failure' }}
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-      run: |
-        aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }}
-        aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }}
+    # - name: Delete image from ECR when tests fail
+    #   if: ${{ failure() && steps.run-smoke-tests.outcome == 'failure' }}
+    #   env:
+    #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+    #   run: |
+    #     aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }}
+    #     aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }}
 
     # - name: Terminate temp EC2 instance
     #   if: always()
