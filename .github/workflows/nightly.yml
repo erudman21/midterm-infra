@@ -74,6 +74,7 @@ jobs:
           --user-data file://userdata-final.sh \
           --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=temp-smoke-test}]' \
           --query 'Instances[0].InstanceId' \
+          --key-name aws_desktop \
           --output text)
         
         echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
@@ -121,12 +122,12 @@ jobs:
         aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }}
         aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }}
 
-    - name: Terminate temp EC2 instance
-      if: always()
-      env:
-        INSTANCE_ID: ${{ steps.launch-ec2.outputs.instance_id }}
-      run: |
-        aws ec2 terminate-instances --instance-ids $INSTANCE_ID
+    # - name: Terminate temp EC2 instance
+    #   if: always()
+    #   env:
+    #     INSTANCE_ID: ${{ steps.launch-ec2.outputs.instance_id }}
+    #   run: |
+    #     aws ec2 terminate-instances --instance-ids $INSTANCE_ID
     
     - name: Deploy to QA
       run: true
