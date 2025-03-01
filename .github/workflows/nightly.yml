@@ -62,6 +62,9 @@ jobs:
         # Bake values into user-data script
         cat infra/scripts/user-data.sh | \
           sed "s/\${ECR_REGISTRY}/${{ steps.login-ecr.outputs.registry }}/g" | \
+          sed "s/\${AWS_ACCESS_KEY_ID}/${{ secrets.AWS_ACCESS_KEY_ID }}/g" | \
+          sed "s/\${AWS_SECRET_ACCESS_KEY}/${{ secrets.AWS_SECRET_ACCESS_KEY }}/g" | \
+          sed "s/\${AWS_SESSION_TOKEN}/${{ secrets.AWS_SESSION_TOKEN }}/g" | \
           sed "s/\${IMAGE_TAG}/${{ github.sha }}/g" > userdata-final.sh
 
     - name: Launch temp EC2 instance for testing
@@ -91,7 +94,7 @@ jobs:
         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
         
         # Add time for the user data script to finish
-        sleep 180
+        sleep 45
 
     - name: Run smoke tests
       id: run-smoke-tests
