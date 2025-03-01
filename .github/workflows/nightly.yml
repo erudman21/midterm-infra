@@ -39,7 +39,7 @@ jobs:
       run: |
         # Build and push images to ECR
         cd source/frontend
-        docker build -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
+        docker build --build-arg API_URL=/api/users -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
         
         cd ../backend
