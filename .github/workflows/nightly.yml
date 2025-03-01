@@ -72,6 +72,7 @@ jobs:
           --query 'Instances[0].InstanceId' \
           --security-group-ids ${{ secrets.TEMP_EC2_SECURITY_GROUP }} \
           --subnet-id ${{ secrets.PUBLIC_SUBNET_ID }} \
+          --associate-public-ip-address \
           --output text)
         
         echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
