@@ -72,6 +72,6 @@ sudo AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_A
 sudo ECR_REGISTRY=${ECR_REGISTRY} IMAGE_TAG=${IMAGE_TAG} docker compose up -d
 
 # Wait for MySQL to initialize
-sleep 30
+sleep 60
 
 echo "Application started"
