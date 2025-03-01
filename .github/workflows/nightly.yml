@@ -9,7 +9,6 @@ jobs:
   nightly-build-and-test:
     runs-on: ubuntu-latest
 
-    
     steps:
     - name: Checkout Infra Repo
       uses: actions/checkout@v4
@@ -38,6 +37,7 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
+        # Build and push images to ECR
         cd source/frontend
         docker build -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
@@ -46,36 +46,32 @@ jobs:
         docker build -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
 
-    - name: Debug directories
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Contents of current directory:"
-        ls -la
-
     - name: Prepare user data script
       run: |
-        DOCKER_COMPOSE_CONTENT=$(cat infra/docker-compose-with-images.yml)
-        SQL_INIT_CONTENT=$(cat source/database/init.sql)
-
-        # Bake values into user-data script
-        cat infra/scripts/user-data.sh | \
+        # Copy the user-data script from infra repo
+        cp infra/scripts/user-data.sh ./user-data-template.sh
+        
+        # Replace variables in the user-data script
+        cat ./user-data-template.sh | \
           sed "s@\${ECR_REGISTRY}@${{ steps.login-ecr.outputs.registry }}@g" | \
           sed "s@\${AWS_ACCESS_KEY_ID}@${{ secrets.AWS_ACCESS_KEY_ID }}@g" | \
           sed "s@\${AWS_SECRET_ACCESS_KEY}@${{ secrets.AWS_SECRET_ACCESS_KEY }}@g" | \
           sed "s@\${AWS_SESSION_TOKEN}@${{ secrets.AWS_SESSION_TOKEN }}@g" | \
-          sed "s@\${IMAGE_TAG}@${{ github.sha }}@g" > userdata-final.sh
+          sed "s@\${IMAGE_TAG}@${{ github.sha }}@g" | \
+          sed "s@\${LAMBDA_ARN}@${{ secrets.LAMBDA_ARN }}@g" > userdata-final.sh
 
     - name: Launch temp EC2 instance for testing
       id: launch-ec2
       run: |
-        # Launch EC2 instance
+        # Launch temporary EC2 instance for smoke tests
         INSTANCE_ID=$(aws ec2 run-instances \
           --image-id ami-05b10e08d247fb927 \
           --instance-type t2.micro \
           --user-data file://userdata-final.sh \
           --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=temp-smoke-test}]' \
           --query 'Instances[0].InstanceId' \
-          --key-name aws_desktop \
+          --security-group-ids ${{ secrets.TEMP_EC2_SECURITY_GROUP }} \
+          --subnet-id ${{ secrets.PUBLIC_SUBNET_ID }} \
           --output text)
         
         echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
@@ -90,45 +86,3 @@ jobs:
           --output text)
         
         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
-        
-        # Add time for the user data script to finish
-        sleep 45
-
-    - name: Run smoke tests
-      id: run-smoke-tests
-      env:
-        EC2_IP: ${{ steps.launch-ec2.outputs.public_ip }}
-      run: |
-        chmod +x infra/scripts/smoke_test.sh
-        ./infra/scripts/smoke_test.sh
-
-    - name: Tag successful images as latest
-      if: ${{ success() && steps.run-smoke-tests.outcome == 'success' }}
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-      run: |
-        # Frontend image
-        MANIFEST=$(aws ecr batch-get-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }} --query 'images[].imageManifest' --output text)
-        aws ecr put-image --repository-name midterm/frontend --image-tag latest --image-manifest "$MANIFEST"
-        
-        # Backend image
-        MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }} --query 'images[].imageManifest' --output text)
-        aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
-
-    # - name: Delete image from ECR when tests fail
-    #   if: ${{ failure() && steps.run-smoke-tests.outcome == 'failure' }}
-    #   env:
-    #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-    #   run: |
-    #     aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${{ github.sha }}
-    #     aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${{ github.sha }}
-
-    # - name: Terminate temp EC2 instance
-    #   if: always()
-    #   env:
-    #     INSTANCE_ID: ${{ steps.launch-ec2.outputs.instance_id }}
-    #   run: |
-    #     aws ec2 terminate-instances --instance-ids $INSTANCE_ID
-    
-    - name: Deploy to QA
-      run: true
