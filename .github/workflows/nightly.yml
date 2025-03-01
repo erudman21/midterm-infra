@@ -73,6 +73,7 @@ jobs:
           --security-group-ids ${{ secrets.TEMP_EC2_SECURITY_GROUP }} \
           --subnet-id ${{ secrets.PUBLIC_SUBNET_ID }} \
           --associate-public-ip-address \
+          --key-name aws_desktop \
           --output text)
         
         echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
