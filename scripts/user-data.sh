@@ -55,7 +55,7 @@ EOL_COMPOSE
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
 # Start the application
-ECR_REGISTRY=${ECR_REGISTRY} IMAGE_TAG=${IMAGE_TAG} docker-compose up -d
+ECR_REGISTRY=${ECR_REGISTRY} IMAGE_TAG=${IMAGE_TAG} docker compose up -d
 
 # Wait for MySQL to initialize
 sleep 30
