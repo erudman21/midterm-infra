@@ -12,6 +12,7 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # Create working directory
 mkdir -p /app
 cd /app
+mkdir -p database
 
 cat > docker-compose.yml << 'EOL_COMPOSE'
 version: '3.8'

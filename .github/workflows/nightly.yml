@@ -56,8 +56,6 @@ jobs:
       run: |
         DOCKER_COMPOSE_CONTENT=$(cat infra/docker-compose-with-images.yml)
         SQL_INIT_CONTENT=$(cat source/database/init.sql)
-      
-        mkdir -p database
 
         # Bake values into user-data script
         cat infra/scripts/user-data.sh | \
