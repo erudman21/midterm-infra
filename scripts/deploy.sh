@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Function to terminate the instance regardless of where the script fails
-terminate_instance() {
-  echo "Terminating instance..."
-  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-  INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-  aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
-}
+# terminate_instance() {
+#   echo "Terminating instance..."
+#   TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+#   INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+#   aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
+# }
 
-trap terminate_instance EXIT ERR SIGINT SIGTERM
+# trap terminate_instance EXIT ERR SIGINT SIGTERM
 
 set -e
 
@@ -82,7 +82,5 @@ else
   aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG}
 fi
 
-# Disable the trap before exiting normally
-# This prevents duplicate termination attempts
-trap - EXIT
-terminate_instance
+# trap - EXIT
+# terminate_instance
