@@ -41,22 +41,40 @@ if ./smoke_test.sh; then
   MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG} --query 'images[].imageManifest' --output text)
   aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
   
-  # Invoke Lambda to deploy to QA environment
-  PAYLOAD=$(echo -n '{
-    "ecr_registry":"'"${ECR_REGISTRY}"'",
-    "aws_credentials":{
-      "access_key":"'"${AWS_ACCESS_KEY_ID}"'",
-      "secret_key":"'"${AWS_SECRET_ACCESS_KEY}"'",
-      "session_token":"'"${AWS_SESSION_TOKEN}"'"
-    },
-    "rds_credentials":{
-      "rds_endpoint":"'"${RDS_ENDPOINT}"'",
-      "db_name":"'"${DB_NAME}"'",
-      "db_user":"'"${DB_USER}"'",
-      "db_pass":"'"${DB_PASS}"'"
-    }
-  }' | base64)
-  aws lambda invoke --function-name ${LAMBDA_ARN} --payload "$PAYLOAD" /tmp/lambda-response.json
+  # Get the workflow run ID of the current workflow
+  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+  
+  # Get tags
+  INSTANCE_DATA=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region us-east-1)
+  WORKFLOW_RUN_ID=$(echo $INSTANCE_DATA | grep -o '"Name": "workflow_run_id", "Value": "[^"]*"' | cut -d'"' -f6)
+  
+  if [ -z "$WORKFLOW_RUN_ID" ]; then
+    # If no tag is found, use a default value
+    WORKFLOW_RUN_ID="unknown"
+  fi
+  
+  # Trigger GitHub Actions workflow for QA deployment
+  echo "Triggering QA deployment workflow..."
+  curl -X POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: token ${DEPLOY_PAT}" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    https://api.github.com/repos/erudman21/midterm-infra/actions/workflows/qa-deploy.yml/dispatches \
+    -d "{
+      \"ref\": \"${GITHUB_REF_NAME}\",
+      \"inputs\": {
+        \"image_tag\": \"${IMAGE_TAG}\",
+        \"run_id\": \"${WORKFLOW_RUN_ID}\"
+      }
+    }"
+    
+  # Log the payload
+  echo "Sending payload with IMAGE_TAG=${IMAGE_TAG}, WORKFLOW_RUN_ID=${WORKFLOW_RUN_ID}"
+    
+  # Wait for a few seconds to make sure the curl request finishes
+  sleep 10
+  echo "QA deployment workflow triggered"
 else
   echo "Tests failed" > /tmp/test_result.txt
   # Delete failed images from ECR

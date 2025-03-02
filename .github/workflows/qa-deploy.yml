@@ -1,0 +1,84 @@
+name: QA Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+      run_id:
+        description: 'Originating workflow run ID'
+        required: true
+
+jobs:
+  deploy-to-qa:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.QA_SERVER_IP }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to QA environment
+      env:
+        QA_SERVER_IP: ${{ secrets.QA_SERVER_IP }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        # Create .env file for the QA server
+        cat > qa.env << EOF
+        IMAGE_TAG=${{ github.event.inputs.image_tag }}
+        RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
+        DB_USER=${{ secrets.DB_USER }}
+        DB_PASS=${{ secrets.DB_PASS }}
+        DB_NAME=${{ secrets.DB_NAME }}
+        EOF
+        
+        # Transfer the .env file to the QA server
+        scp qa.env ec2-user@${QA_SERVER_IP}:~/app/.env
+        
+        # Run deployment commands on the QA server
+        ssh ec2-user@${QA_SERVER_IP} << 'ENDSSH'
+          # Login to ECR
+          aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+          cd ~/app
+          sudo docker compose down
+          sudo docker compose up -d
+          
+          # Check if Nginx is running, restart if needed
+          if ! systemctl is-active --quiet nginx; then
+            sudo systemctl restart nginx
+          fi
+          
+          echo "Deployment completed at $(date)"
+        ENDSSH
+
+    - name: Update nightly workflow status
+      if: always()
+      env:
+        GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
+        RUN_ID: ${{ github.event.inputs.run_id }}
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "QA deployment successful"
+        else
+          echo "QA deployment failed"
+        fi
