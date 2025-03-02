@@ -1,5 +1,6 @@
 const { Client } = require('ssh2');
 
+// Function to create an SSH connection
 async function createSSHConnection(host, privateKey) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
@@ -47,16 +48,24 @@ exports.handler = async (event) => {
   let conn;
   
   try {
-    const ecrRegistry = event.ecr_registry;
     const qaServerIp = process.env.QA_SERVER_IP;
-    const qaSSHKey = process.env.QA_SSH_KEY;
+    const ecrRegistry = event.ecr_registry;
+    const credentials = event.aws_credentials;
+    const dbInfo = event.rds_credentials;
     
     // Connect to the QA EC2 instance
     const formattedKey = process.env.QA_SSH_KEY.replace(/\\n/g, '\n');
     conn = await createSSHConnection(qaServerIp, formattedKey);
     
-    // Build the deployment command
     const deployCommand = `
+      export AWS_ACCESS_KEY_ID="${credentials.access_key}"
+      export AWS_SECRET_ACCESS_KEY="${credentials.secret_key}"
+      export AWS_SESSION_TOKEN="${credentials.session_token}"
+      export RDS_ENDPOINT="${dbInfo.rds_endpoint}"
+      export DB_USER="${dbInfo.db_user}"
+      export DB_PASS="${dbInfo.db_pass}"
+      export DB_NAME="${dbInfo.db_name}"
+      
       # Login to ECR
       aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ecrRegistry}
       

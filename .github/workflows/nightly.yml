@@ -87,6 +87,10 @@ jobs:
         export AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
         export IMAGE_TAG=${{ github.sha }}
         export LAMBDA_ARN=${{ secrets.LAMBDA_ARN }}
+        export RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT}}
+        export DB_USER=${{ secrets.DB_USER }}
+        export DB_PASS=${{ secrets.DB_PASS }}
+        export DB_NAME=${{ secrets.DB_NAME}}
         EOF
         
         # Copy scripts and config files
