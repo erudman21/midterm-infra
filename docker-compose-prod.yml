@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ${ECR_REGISTRY}/midterm/frontend:latest
+    pull_policy: always
+    ports:
+      - "3000:80"
+    restart: always
+    depends_on:
+      - backend
+
+  backend:
+    image: ${ECR_REGISTRY}/midterm/backend:latest
+    pull_policy: always
+    environment:
+      - DB_HOST=${RDS_ENDPOINT}
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - "9080:9080"
+    restart: always

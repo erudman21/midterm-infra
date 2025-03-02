@@ -91,6 +91,7 @@ jobs:
         export DB_USER=${{ secrets.DB_USER }}
         export DB_PASS=${{ secrets.DB_PASS }}
         export DB_NAME=${{ secrets.DB_NAME}}
+        export SSH_KEY=${{ secrets.SSH_KEY }}
         EOF
         
         # Copy scripts and config files
