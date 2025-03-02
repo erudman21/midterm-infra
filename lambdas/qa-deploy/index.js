@@ -3,7 +3,6 @@ const { Client } = require('ssh2');
 async function createSSHConnection(host, privateKey) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
-    
     conn.on('ready', () => {
       console.log('SSH connection established');
       resolve(conn);
@@ -51,9 +50,12 @@ exports.handler = async (event) => {
     const ecrRegistry = event.ecr_registry;
     const qaServerIp = process.env.QA_SERVER_IP;
     const qaSSHKey = process.env.QA_SSH_KEY;
-
-    conn = await createSSHConnection(qaServerIp, qaSSHKey);
-
+    
+    // Connect to the QA EC2 instance
+    const formattedKey = process.env.QA_SSH_KEY.replace(/\\n/g, '\n');
+    conn = await createSSHConnection(qaServerIp, formattedKey);
+    
+    // Build the deployment command
     const deployCommand = `
       # Login to ECR
       aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ecrRegistry}
@@ -61,9 +63,9 @@ exports.handler = async (event) => {
       # Stop current containers
       cd ~/app
       docker compose down
-      
+
       # Start with new images
-      sudo docker compose up -d
+      docker compose up -d
       
       # Check if Nginx is running, restart if needed
       if ! systemctl is-active --quiet nginx; then
@@ -87,7 +89,7 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('Error during deployment:', error);
-
+    
     if (conn) conn.end();
     
     return {

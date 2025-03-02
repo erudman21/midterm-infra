@@ -46,28 +46,44 @@ jobs:
         docker build -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
         docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
 
-    - name: Prepare user data script
+    - name: Prepare deployment package
       run: |
-        # Copy the user-data script from infra repo
-        cp infra/scripts/user-data.sh ./user-data-template.sh
+        mkdir -p deployment_package
+        mkdir -p deployment_package/database
+
+        cat > deployment_package/env.sh << EOF
+          #!/bin/bash
+          # Environment variables for deployment
+          export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          export AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
+          export IMAGE_TAG=${{ github.sha }}
+          export LAMBDA_ARN=${{ secrets.LAMBDA_ARN }}
+        EOF
         
-        # Replace variables in the user-data script
-        cat ./user-data-template.sh | \
-          sed "s@\${ECR_REGISTRY}@${{ steps.login-ecr.outputs.registry }}@g" | \
-          sed "s@\${AWS_ACCESS_KEY_ID}@${{ secrets.AWS_ACCESS_KEY_ID }}@g" | \
-          sed "s@\${AWS_SECRET_ACCESS_KEY}@${{ secrets.AWS_SECRET_ACCESS_KEY }}@g" | \
-          sed "s@\${AWS_SESSION_TOKEN}@${{ secrets.AWS_SESSION_TOKEN }}@g" | \
-          sed "s@\${IMAGE_TAG}@${{ github.sha }}@g" | \
-          sed "s@\${LAMBDA_ARN}@${{ secrets.LAMBDA_ARN }}@g" > userdata-final.sh
+        # Copy scripts and config files
+        cp infra/scripts/setup.sh deployment_package/
+        cp infra/scripts/deploy.sh deployment_package/
+        cp infra/docker-compose.yml deployment_package/
+        cp infra/scripts/smoke_test.sh deployment_package/
+        cp infra/database/init.sql deployment_package/database/
+        
+        # Make scripts executable
+        chmod +x deployment_package/*.sh
+        
+        # Create zip file
+        cd deployment_package
+        zip -r ../deployment.zip *
+        cd ..
 
     - name: Launch temp EC2 instance for testing
       id: launch-ec2
       run: |
-        # Launch temporary EC2 instance for smoke tests
         INSTANCE_ID=$(aws ec2 run-instances \
           --image-id ami-05b10e08d247fb927 \
           --instance-type t2.micro \
-          --user-data file://userdata-final.sh \
+          --user-data file://infra/scripts/user-data.sh \
           --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=temp-smoke-test}]' \
           --query 'Instances[0].InstanceId' \
           --security-group-ids ${{ secrets.TEMP_EC2_SECURITY_GROUP }} \
@@ -81,10 +97,19 @@ jobs:
         # Wait for instance to be running
         aws ec2 wait instance-running --instance-ids $INSTANCE_ID
 
-        # Get public IP address for smoke tests
         PUBLIC_IP=$(aws ec2 describe-instances \
           --instance-ids $INSTANCE_ID \
           --query 'Reservations[0].Instances[0].PublicIpAddress' \
           --output text)
         
         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+        
+        scp -o StrictHostKeyChecking=no -i ${{ secrets.SSH_KEY }} deployment.zip ec2-user@$PUBLIC_IP:~/
+        
+        ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_KEY }} ec2-user@$PUBLIC_IP << 'ENDSSH'
+          mkdir -p deployment
+          unzip -o deployment.zip -d deployment
+          cd deployment
+          chmod +x *.sh
+          ./deploy.sh
+        ENDSSH
