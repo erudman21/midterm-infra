@@ -25,7 +25,6 @@ if ./smoke_test.sh; then
   echo "Tests passed" > /tmp/test_result.txt
   
   # Tag images with latest
-  echo "=== Tagging successful images as latest ==="
   MANIFEST=$(aws ecr batch-get-image --repository-name midterm/frontend --image-ids imageTag=${IMAGE_TAG} --query 'images[].imageManifest' --output text)
   aws ecr put-image --repository-name midterm/frontend --image-tag latest --image-manifest "$MANIFEST"
   MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG} --query 'images[].imageManifest' --output text)
@@ -34,8 +33,6 @@ if ./smoke_test.sh; then
   # Invoke Lambda to deploy to QA environment
   PAYLOAD=$(echo -n '{"ecr_registry":"'${ECR_REGISTRY}'"}' | base64)
   aws lambda invoke --function-name ${LAMBDA_ARN} --payload "$PAYLOAD" /tmp/lambda-response.json
-  
-  echo "=== Deployment successful ==="
 else
   echo "Tests failed" > /tmp/test_result.txt
   # Delete failed images from ECR

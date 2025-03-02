@@ -21,4 +21,4 @@ aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
 aws_session_token=${AWS_SESSION_TOKEN}
 EOL
 
-sudo aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ECR_REGISTRY}
+aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ECR_REGISTRY}
