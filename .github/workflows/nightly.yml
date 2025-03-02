@@ -104,12 +104,29 @@ jobs:
         
         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
         
-        scp -o StrictHostKeyChecking=no -i ${{ secrets.SSH_KEY }} deployment.zip ec2-user@$PUBLIC_IP:~/
+    - name: Setup SSH and transfer deployment
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
         
-        ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_KEY }} ec2-user@$PUBLIC_IP << 'ENDSSH'
+        # Wait a moment for SSH to be ready
+        sleep 30
+        
+        # Transfer the deployment package
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa deployment.zip ec2-user@${{ steps.launch-ec2.outputs.public_ip }}:~/
+
+    - name: Run deployment
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ steps.launch-ec2.outputs.public_ip }} << 'ENDSSH'
           mkdir -p deployment
           unzip -o deployment.zip -d deployment
           cd deployment
           chmod +x *.sh
           ./deploy.sh
         ENDSSH
+    
+    # - name: Cleanup if deployment fails
+    #   if: failure()
+    #   run: aws ec2 terminate-instances --instance-ids ${{ steps.launch-ec2.outputs.instance_id }}
