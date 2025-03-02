@@ -31,7 +31,7 @@ if ./smoke_test.sh; then
   aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
   
   # Invoke Lambda to deploy to QA environment
-  PAYLOAD=$(echo -n '{"ecr_registry":"'${ECR_REGISTRY}'"}' | base64)
+  PAYLOAD=$(echo -n '{"ecr_registry":"'${ECR_REGISTRY}'","aws_credentials":{"access_key":"'${AWS_ACCESS_KEY_ID}'","secret_key":"'${AWS_SECRET_ACCESS_KEY}'","session_token":"'${AWS_SESSION_TOKEN}'"}}' | base64)
   aws lambda invoke --function-name ${LAMBDA_ARN} --payload "$PAYLOAD" /tmp/lambda-response.json
 else
   echo "Tests failed" > /tmp/test_result.txt

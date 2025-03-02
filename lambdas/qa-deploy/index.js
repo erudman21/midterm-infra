@@ -62,10 +62,10 @@ exports.handler = async (event) => {
       
       # Stop current containers
       cd ~/app
-      docker compose down
+      sudo docker compose down
 
       # Start with new images
-      docker compose up -d
+      sudo docker compose up -d
       
       # Check if Nginx is running, restart if needed
       if ! systemctl is-active --quiet nginx; then
