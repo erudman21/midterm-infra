@@ -60,7 +60,7 @@ if ./smoke_test.sh; then
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: token ${DEPLOY_PAT}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    https://api.github.com/repos/erudman21/midterm-infra/actions/workflows/qa-deploy.yml/dispatches \
+    https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/qa-deploy.yml/dispatches \
     -d "{
       \"ref\": \"${GITHUB_REF_NAME}\",
       \"inputs\": {

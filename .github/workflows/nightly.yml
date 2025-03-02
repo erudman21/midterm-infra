@@ -91,6 +91,9 @@ jobs:
         export DB_USER=${{ secrets.DB_USER }}
         export DB_PASS=${{ secrets.DB_PASS }}
         export DB_NAME=${{ secrets.DB_NAME}}
+        export GITHUB_TOKEN=${{ secrets.DEPLOY_PAT }}
+        export GITHUB_REPOSITORY=${{ github.repository }}
+        export GITHUB_REF_NAME=${{ github.ref_name }}
         EOF
         
         # Copy scripts and config files
