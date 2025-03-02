@@ -124,7 +124,7 @@ jobs:
           unzip -o deployment.zip -d deployment
           cd deployment
           chmod +x *.sh
-          ./deploy.sh
+          ./deploy.sh > /dev/null 2>&1 & disown
         ENDSSH
     
     # - name: Cleanup if deployment fails
