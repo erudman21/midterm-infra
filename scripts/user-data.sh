@@ -124,7 +124,8 @@ if ./smoke_test.sh; then
   MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG} --query 'images[].imageManifest' --output text)
   aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
   
-  aws lambda invoke --function-name ${LAMBDA_ARN} --payload '{"ecr_registry":"'${ECR_REGISTRY}'"}' /tmp/lambda-response.json
+  PAYLOAD=$(echo -n '{"ecr_registry":"'${ECR_REGISTRY}'"}' | base64)
+  aws lambda invoke --function-name ${LAMBDA_ARN} --payload "$PAYLOAD" /tmp/lambda-response.json
 else
   echo "Tests failed" > /tmp/test_result.txt
   
