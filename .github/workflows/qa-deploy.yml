@@ -48,13 +48,10 @@ jobs:
           export DB_PASS=${{ secrets.DB_PASS }}
           export DB_NAME=${{ secrets.DB_NAME }}
 
-          mkdir -p ~/.aws
-          cat > ~/.aws/credentials << EOL
-          [default]
+          sudo mkdir -p ~/.aws && echo "[default]
           aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
-          EOL
+          aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}" | sudo tee ~/.aws/credentials > /dev/null
 
           # Login to ECR
           aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
