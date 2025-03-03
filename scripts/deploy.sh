@@ -8,7 +8,7 @@ terminate_instance() {
   aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
 }
 
-# trap terminate_instance EXIT ERR SIGINT SIGTERM
+trap terminate_instance EXIT ERR SIGINT SIGTERM
 
 set -e
 
@@ -98,8 +98,8 @@ else
 fi
 
 # Wait for a few seconds to make sure the curl request finishes
-sleep 10
+sleep 15
 echo "QA deployment workflow triggered"
 
-# trap - EXIT
-# terminate_instance
+trap - EXIT
+terminate_instance
