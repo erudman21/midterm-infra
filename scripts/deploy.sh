@@ -5,7 +5,7 @@ terminate_instance() {
   echo "Terminating instance..."
   TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
   INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-  # aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
+  aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
 }
 
 trap terminate_instance EXIT ERR SIGINT SIGTERM
@@ -31,6 +31,15 @@ sudo ECR_REGISTRY=${ECR_REGISTRY} IMAGE_TAG=${IMAGE_TAG} docker compose up -d
 # Wait for MySQL to initialize
 sleep 60
 
+# Get the workflow run ID of the current workflow
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+if [ -z "$WORKFLOW_RUN_ID" ]; then
+  # If no tag is found, use a default value
+  WORKFLOW_RUN_ID="unknown"
+fi
+
 # Run smoke tests
 if ./smoke_test.sh; then
   echo "Tests passed" > /tmp/test_result.txt
@@ -40,19 +49,6 @@ if ./smoke_test.sh; then
   aws ecr put-image --repository-name midterm/frontend --image-tag latest --image-manifest "$MANIFEST"
   MANIFEST=$(aws ecr batch-get-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG} --query 'images[].imageManifest' --output text)
   aws ecr put-image --repository-name midterm/backend --image-tag latest --image-manifest "$MANIFEST"
-  
-  # Get the workflow run ID of the current workflow
-  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-  INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-  
-  # Get tags
-  INSTANCE_DATA=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --region us-east-1)
-  WORKFLOW_RUN_ID=$(echo $INSTANCE_DATA | grep -o '"Name": "workflow_run_id", "Value": "[^"]*"' | cut -d'"' -f6)
-  
-  if [ -z "$WORKFLOW_RUN_ID" ]; then
-    # If no tag is found, use a default value
-    WORKFLOW_RUN_ID="unknown"
-  fi
   
   # Trigger GitHub Actions workflow for QA deployment
   echo "Triggering QA deployment workflow..."
@@ -109,4 +105,4 @@ sleep 15
 echo "QA deployment workflow triggered"
 
 trap - EXIT
-# terminate_instance
+terminate_instance

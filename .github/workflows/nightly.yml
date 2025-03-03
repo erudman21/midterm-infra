@@ -98,6 +98,7 @@ jobs:
         export GITHUB_TOKEN=${{ secrets.DEPLOY_PAT }}
         export GITHUB_REPOSITORY=${{ github.repository }}
         export GITHUB_REF_NAME=${{ github.ref_name }}
+        export WORKFLOW_RUN_ID=${{ github.run_id }}
         EOF
         
         # Copy scripts and config files
