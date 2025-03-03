@@ -10,11 +10,25 @@ on:
         description: 'Originating workflow run ID'
         required: true
       status:
-        description: 'Deployment status (if any)'
+        description: 'Deployment status'
         required: false
         default: ''
 
 jobs:
+  # Handle failed integration tests
+  handle-failed-tests:
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.inputs.status, 'failed') }}
+    
+    steps:
+    - name: Report Integration Test Failure
+      run: |
+        echo "::error::Integration tests failed. QA deployment skipped."
+        echo "Integration tests failed for image tag ${{ github.event.inputs.image_tag }}"
+        echo "Failed in workflow run ID ${{ github.event.inputs.run_id }}"
+        echo "Image wasn't deployed to QA"
+        exit 1
+
   deploy-to-qa:
     runs-on: ubuntu-latest
     
@@ -77,31 +91,9 @@ jobs:
 
     - name: Update nightly workflow status
       if: always()
-      env:
-        GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
-        RUN_ID: ${{ github.event.inputs.run_id }}
       run: |
         if [ "${{ job.status }}" == "success" ]; then
           echo "QA deployment successful"
         else
           echo "QA deployment failed"
         fi
-  
-  # New job to handle failed integration tests
-  handle-failed-tests:
-    runs-on: ubuntu-latest
-    if: ${{ contains(github.event.inputs.status, 'failed') }}
-    
-    steps:
-    - name: Report Integration Test Failure
-      run: |
-        echo "::error::Integration tests failed. QA deployment skipped."
-        echo "Integration tests failed for image tag ${{ github.event.inputs.image_tag }}"
-        echo "Failed in workflow run ID ${{ github.event.inputs.run_id }}"
-        
-    - name: Notify Failed Tests
-      env:
-        GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
-        RUN_ID: ${{ github.event.inputs.run_id }}
-      run: |
-        echo "Integration tests failed, image wasn't deployed to QA"
