@@ -9,11 +9,18 @@ on:
       run_id:
         description: 'Originating workflow run ID'
         required: true
+      status:
+        description: 'Deployment status (if any)'
+        required: false
+        default: ''
 
 jobs:
   deploy-to-qa:
     runs-on: ubuntu-latest
-
+    
+    # Skip actual deployment if status contains "failed"
+    if: ${{ !contains(github.event.inputs.status, 'failed') }}
+    
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -79,3 +86,22 @@ jobs:
         else
           echo "QA deployment failed"
         fi
+  
+  # New job to handle failed integration tests
+  handle-failed-tests:
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.inputs.status, 'failed') }}
+    
+    steps:
+    - name: Report Integration Test Failure
+      run: |
+        echo "::error::Integration tests failed. QA deployment skipped."
+        echo "Integration tests failed for image tag ${{ github.event.inputs.image_tag }}"
+        echo "Failed in workflow run ID ${{ github.event.inputs.run_id }}"
+        
+    - name: Notify Failed Tests
+      env:
+        GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
+        RUN_ID: ${{ github.event.inputs.run_id }}
+      run: |
+        echo "Integration tests failed, image wasn't deployed to QA"
