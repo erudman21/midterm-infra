@@ -58,7 +58,7 @@ jobs:
 
           cd ~/app
           sudo docker compose down
-          sudo ECR_REGISTRY=${ECR_REGISTRY} IMAGE_TAG=${IMAGE_TAG} docker compose up -d
+          sudo ECR_REGISTRY=\$ECR_REGISTRY IMAGE_TAG=\$IMAGE_TAG docker compose up -d
           
           # Check if Nginx is running, restart if needed
           if ! systemctl is-active --quiet nginx; then
