@@ -64,14 +64,19 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
+        # Get current timestamp in a format suitable for Docker tags
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+
         # Build and push images to ECR
         cd source/frontend
-        docker build --build-arg API_URL=/api/users -t $ECR_REGISTRY/midterm/frontend:${{ github.sha }} .
-        docker push $ECR_REGISTRY/midterm/frontend:${{ github.sha }}
+        docker build --build-arg API_URL=/api/users -t $ECR_REGISTRY/midterm/frontend:$TIMESTAMP .
+        docker push $ECR_REGISTRY/midterm/frontend:$TIMESTAMP
         
         cd ../backend
-        docker build -t $ECR_REGISTRY/midterm/backend:${{ github.sha }} .
-        docker push $ECR_REGISTRY/midterm/backend:${{ github.sha }}
+        docker build -t $ECR_REGISTRY/midterm/backend:$TIMESTAMP .
+        docker push $ECR_REGISTRY/midterm/backend:$TIMESTAMP
+
+        echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
     - name: Prepare deployment package
       run: |
@@ -85,7 +90,7 @@ jobs:
         export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
         export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         export AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
-        export IMAGE_TAG=${{ github.sha }}
+        export IMAGE_TAG=$TIMESTAMP
         export RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT}}
         export DB_USER=${{ secrets.DB_USER }}
         export DB_PASS=${{ secrets.DB_PASS }}
