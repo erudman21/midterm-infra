@@ -78,6 +78,25 @@ else
   aws ecr batch-delete-image --repository-name midterm/frontend --image-ids imageTag=${IMAGE_TAG}
   aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG}
 
+  cat > /tmp/github_api_debug.txt << EOF
+  API URL: https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/qa-deploy.yml/dispatches
+  GITHUB_TOKEN: ${GITHUB_TOKEN}
+  GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
+  GITHUB_REF_NAME: ${GITHUB_REF_NAME}
+  IMAGE_TAG: ${IMAGE_TAG}
+  WORKFLOW_RUN_ID: ${WORKFLOW_RUN_ID}
+
+  Full payload:
+  {
+    "ref": "${GITHUB_REF_NAME}",
+    "inputs": {
+      "image_tag": "${IMAGE_TAG}",
+      "run_id": "${WORKFLOW_RUN_ID}",
+      "status": "integration tests failed"
+    }
+  }
+  EOF
+
   echo "Triggering QA deployment workflow with test failure notification..."
   curl -X POST \
     -H "Accept: application/vnd.github+json" \
