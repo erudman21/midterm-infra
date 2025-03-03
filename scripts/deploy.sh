@@ -5,7 +5,7 @@ terminate_instance() {
   echo "Terminating instance..."
   TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
   INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-  aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
+  # aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region us-east-1
 }
 
 trap terminate_instance EXIT ERR SIGINT SIGTERM
@@ -79,10 +79,12 @@ else
   aws ecr batch-delete-image --repository-name midterm/backend --image-ids imageTag=${IMAGE_TAG}
 
   echo "Triggering QA deployment workflow with test failure notification..."
-  curl -X POST \
+  curl_response=$(curl -X POST \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
+    -w "%{http_code}" \
+    -o /tmp/curl_output.txt \
     https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/qa-deploy.yml/dispatches \
     -d "{
       \"ref\": \"${GITHUB_REF_NAME}\",
@@ -91,7 +93,12 @@ else
         \"run_id\": \"${WORKFLOW_RUN_ID}\",
         \"status\": \"integration tests failed\"
       }
-    }"
+    }")
+    
+  # Log the response and status code
+  echo "GitHub API response status: ${curl_response}"
+  echo "GitHub API response body:"
+  cat /tmp/curl_output.txt
     
   # Log the payload
   echo "Sending payload with IMAGE_TAG=${IMAGE_TAG}, WORKFLOW_RUN_ID=${WORKFLOW_RUN_ID}, status=integration tests failed"
@@ -102,4 +109,4 @@ sleep 15
 echo "QA deployment workflow triggered"
 
 trap - EXIT
-terminate_instance
+# terminate_instance
