@@ -58,7 +58,7 @@ if ./smoke_test.sh; then
   echo "Triggering QA deployment workflow..."
   curl -X POST \
     -H "Accept: application/vnd.github+json" \
-    -H "Authorization: token ${DEPLOY_PAT}" \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/qa-deploy.yml/dispatches \
     -d "{

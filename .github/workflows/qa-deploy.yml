@@ -38,26 +38,18 @@ jobs:
         ssh-keyscan -H ${{ secrets.QA_SERVER_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy to QA environment
-      env:
-        QA_SERVER_IP: ${{ secrets.QA_SERVER_IP }}
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        # Create .env file for the QA server
-        cat > qa.env << EOF
-        IMAGE_TAG=${{ github.event.inputs.image_tag }}
-        RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
-        DB_USER=${{ secrets.DB_USER }}
-        DB_PASS=${{ secrets.DB_PASS }}
-        DB_NAME=${{ secrets.DB_NAME }}
-        EOF
-        
-        # Transfer the .env file to the QA server
-        scp qa.env ec2-user@${QA_SERVER_IP}:~/app/.env
-        
         # Run deployment commands on the QA server
-        ssh ec2-user@${QA_SERVER_IP} << 'ENDSSH'
+        ssh ec2-user@${{ secrets.QA_SERVER_IP }} << ENDSSH
+          export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          export IMAGE_TAG=${{ github.event.inputs.image_tag }}
+          export RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
+          export DB_USER=${{ secrets.DB_USER }}
+          export DB_PASS=${{ secrets.DB_PASS }}
+          export DB_NAME=${{ secrets.DB_NAME }}
+
           # Login to ECR
-          aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
 
           cd ~/app
           sudo docker compose down
