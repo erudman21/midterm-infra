@@ -54,7 +54,7 @@ jobs:
           aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}" | sudo tee ~/.aws/credentials > /dev/null
 
           # Login to ECR
-          aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+          aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin \$ECR_REGISTRY
 
           cd ~/app
           sudo docker compose down
